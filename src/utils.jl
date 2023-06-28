@@ -1,5 +1,7 @@
 export random_points_and_normals, loadmesh
 
+using Meshes
+
 function random_points_and_normals(rng::AbstractRNG, Ω::DomainOrData,
     method::HomogeneousSampling)
 size    = method.size
@@ -20,13 +22,12 @@ function loadmesh(path)
     convert(Meshes.SimpleMesh, FileIO.load(path))
 end
 
-function Base.convert(::Type{Meshes.SimpleMesh}, G::GeometryBasics.GeometryBasicsMesh)
+function Base.convert(::Type{Meshes.SimpleMesh}, mesh::GeometryBasics.Mesh)
     # load a mesh as a Meshes.jl mesh, normal loading loads as GeometryBasics mesh
-	mesh = FileIO.load(path)
 	points = [Tuple(p) for p in Set(mesh.position)]
 	indices = Dict(p => i for (i, p) in enumerate(points))
 	connectivities = map(mesh) do el
 		Meshes.connect(Tuple(indices[Tuple(p)] for p in el))
 	end
-	Meshes.SimpleMesh(Point.(points), connectivities)
+	Meshes.SimpleMesh(Meshes.Point.(points), connectivities)
 end

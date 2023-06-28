@@ -1,12 +1,24 @@
 export plotcamera
 
+using Quaternionic
+using Makie
+using GLMakie
+
+function Base.convert(::Type{ImageProjectiveGeometry.Camera}, vp::QuatViewpoint) 
+    Rc_w = to_rotation_matrix(vp.orientation)
+    ImageProjectiveGeometry.Camera(
+        Rc_w = Rc_w,
+        P = vp.position
+    )
+end
+
 function plotcamera(Ci, l, parent; col=[0, 0, 1], plotCamPath=false)
     # from https://github.com/peterkovesi/ImageProjectiveGeometry.jl/blob/master/src/projective.jl#L2149
     scene = Scene(parent)
     if isa(Ci, Array)
         C = Ci
     else
-        C = Vector(1)
+        C = [Ci]
         C[1] = Ci
     end
 

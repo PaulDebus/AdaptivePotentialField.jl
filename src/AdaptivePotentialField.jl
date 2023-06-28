@@ -1,6 +1,5 @@
 module AdaptivePotentialField
 
-using CUDA
 using Meshes
 using Random
 using GeometryBasics: GeometryBasics
@@ -8,27 +7,47 @@ using FileIO
 using ImageProjectiveGeometry
 using Quaternionic
 using LinearAlgebra, StaticArrays
+using ThreadsX
 
 
 
 include("utils.jl")
 include("viewpoints.jl")
 include("visualization.jl")
+export update_weights!, potential, is_point_visible_float
 
-function update_weights!(weights::Vector, vp::Viewpoint; ϵ_d=0.1, λ=0.5, ϵ=1e-2)
-    for i in 1:length(sample_points)
-        if is_point_visible_float(sample_points[i], normals[i], vp.position, viewdir(vp), 4., π/3, cos(π/4), ϵ_d) > ϵ
+@inline cont_isless(x, y; a=100) = 1 / (1+exp(-(y-x)*a))
+function is_point_visible_float(point, normal, position, viewdir, target_distance, fov=π/3, cos_min=cos(π/4), ϵ_d=0.1)
+    dist = norm(point - position)
+    δ = abs(dist - target_distance) / target_distance 
+    
+    # d_vis = 1. - clamp((δ / ϵ_d)^10, 0, 1) # admissible distance range
+    d_vis = cont_isless(δ, ϵ_d)
+    # d_vis = δ < ϵ_d
+    
+    viewray = (point - position)./dist
+    #d_fov = clamp(((viewray ⋅ viewdir) / cos(fov)), 0., 1.)^10 # field of view
+    d_fov = cont_isless(cos(fov), viewdir ⋅ viewray)
+    
+    #d_ang = clamp(((viewray ⋅ -normal) / cos_min), 0., 1.)^10 # angle between normal and viewdir
+    d_ang = cont_isless(cos_min*0., viewray ⋅ -normal)
+    return d_vis * d_fov * d_ang
+end
+
+function update_weights!(weights::Vector, points, normals, vp::Viewpoint; target_distance=4, fov=π/3, ϵ_d=0.1, angle_tol = π/4, λ=0.5, ϵ=1e-2)
+    for i in eachindex(points)
+        if is_point_visible_float(points[i], normals[i], vp.position, viewdir(vp), target_distance, fov, cos(angle_tol), ϵ_d) > ϵ
             weights[i] *= λ
         end
     end
 end
 
-function potential(x::Viewpoint; target_distance=4., fov=π/3, ϵ_d=0.1, angle_tol = π/4, make_training_data=false)
+function potential(x::Viewpoint, points::Vector{SVector{3,T}}, normals::Vector{SVector{3,T}}, weights::Vector; target_distance=4., fov=π/3, ϵ_d=0.1, angle_tol = π/4) where T
     cos_max = cos(angle_tol)
     pos = x.position
     dir = viewdir(x)
     
-    ThreadsX.mapreduce(+, sample_points, normals, weights) do point, normal, weight
+    ThreadsX.mapreduce(+, points, normals, weights) do point, normal, weight
         vis = is_point_visible_float(point, normal, pos, dir, target_distance, fov, cos_max, ϵ_d)
         return vis *  weight
     end
