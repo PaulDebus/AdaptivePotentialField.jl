@@ -12,7 +12,7 @@ function Base.convert(::Type{ImageProjectiveGeometry.Camera}, vp::QuatViewpoint)
     )
 end
 
-function plotcamera!(Ci, l, scene; col=[0, 0, 1], plotCamPath=false)
+function plotcamera!(Ci, l, scene; col=:black, plotCamPath=false)
     # from https://github.com/peterkovesi/ImageProjectiveGeometry.jl/blob/master/src/projective.jl#L2149
     if isa(Ci, Array)
         C = Ci
