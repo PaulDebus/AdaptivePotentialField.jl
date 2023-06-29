@@ -27,7 +27,7 @@ function is_point_visible_float(point, normal, position, viewdir, target_distanc
     
     viewray = (point - position)./dist
     #d_fov = clamp(((viewray ⋅ viewdir) / cos(fov)), 0., 1.)^10 # field of view
-    d_fov = cont_isless(cos(fov), viewdir ⋅ viewray)
+    d_fov = cont_isless(cos(fov/2), viewdir ⋅ viewray)
     
     #d_ang = clamp(((viewray ⋅ -normal) / cos_min), 0., 1.)^10 # angle between normal and viewdir
     d_ang = cont_isless(cos_min*0., viewray ⋅ -normal)
