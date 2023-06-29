@@ -14,8 +14,8 @@ Makie.inline!(false)
 
 
 ## load mesh and sample points
-geo_mesh = load("pfeiler.ply")
-geo_mesh = GeometryBasics.Cylinder3(GeometryBasics.Point(0,0,0), GeometryBasics.Point(0,0,20), 4.0)
+geo_mesh = load("/home/paul/data/models/Scherkonde/pfeiler.ply")
+#geo_mesh = GeometryBasics.Cylinder3(GeometryBasics.Point(0,0,0), GeometryBasics.Point(0,0,20), 4.0)
 mesh = convert(Meshes.SimpleMesh, geo_mesh)
 sample_points, tris = random_points_and_normals(Random.GLOBAL_RNG, mesh, HomogeneousSampling(100000))
 sample_points = [SVector{3,Float64}(coordinates(p)...) for p in sample_points];
@@ -25,8 +25,9 @@ normals = [SVector{3, Float64}(n...) for n in normals];
 ## create a first viewpoint
 coords = sample_points[1]
 coords = coords + normals[1] * 4
-vΦ = Float64(asin(coords[3] / norm(coords)))
-vθ = Float64(atan(coords[2], coords[1]))
+view_dir = -normals[1]
+vθ = Float64(asin(view_dir[3]))
+vΦ = Float64(atan(view_dir[2], view_dir[1]))
 v = PolarViewpoint(SVector{3, Float64}(coords), vθ, vΦ)
 qv = QuatViewpoint(v)
 
@@ -36,7 +37,7 @@ weights = ones(length(sample_points))
 @time potential(qv, sample_points, normals, weights)
 
 ## compute potential in a region around the viewpoint
-function potential_region(vp::Viewpoint, points, normals, weights; d_max=2., steps=10, ang_max=deg2rad(20))
+function potential_region(vp::Viewpoint, points, normals, weights; d_max=2., steps=10, ang_max=deg2rad(20), ϵ_d=0.1, λ=0.5, ϵ=1e-2)
     xs = ys = zs = LinRange(-d_max, d_max, steps)
     θs = Φs = LinRange(-ang_max, ang_max, steps)
     pot = zeros(length(xs), length(ys), length(zs), length(θs), length(Φs))
@@ -47,7 +48,7 @@ function potential_region(vp::Viewpoint, points, normals, weights; d_max=2., ste
                     for (m, Φ) in enumerate(Φs)
                         mov = PolarMovement(SVector{3, Float64}([x, y, z]), θ, Φ)
                         v = apply(vp, mov)
-                        pot[i,j,k,l,m] = potential(v, points, normals, weights)
+                        pot[i,j,k,l,m] = potential(v, points, normals, weights, ϵ_d=ϵ_d)
                     end
                 end
             end
@@ -66,30 +67,32 @@ function index_to_movement(idx::CartesianIndex; d_max=2., steps=10, ang_max=deg2
     PolarMovement(SVector{3, Float64}([x, y, z]), θ, Φ)
 end
 ##
-@time pot = potential_region(qv, sample_points, normals, weights, steps=7);
+@time pot = potential_region(qv, sample_points, normals, weights, steps=5);
 
 ## 
 index_to_movement(argmax(pot), steps=7)
 
 ##
-function update_weights!(weights::Vector, sample_points, normals, vp::Viewpoint; ϵ_d=0.1, λ=0.5, ϵ=1e-2)
-    for i in eachindex(sample_points)
-        if is_point_visible_float(sample_points[i], normals[i], vp.position, viewdir(vp), 4., π/3, cos(π/4), ϵ_d) > ϵ
-            weights[i] *= λ
-        end
-    end
-end
+# function update_weights!(weights::Vector, sample_points, normals, vp::Viewpoint; ϵ_d=0.1, λ=0.5, ϵ=1e-2)
+#     for i in eachindex(sample_points)
+#         if is_point_visible_float(sample_points[i], normals[i], vp.position, viewdir(vp), 4., π/3, cos(π/4), ϵ_d) > ϵ
+#             weights[i] *= λ
+#         end
+#     end
+# end
 
 ## try planning
 vps = [qv]
 moves = []
-steps = 5
+steps = 6
 d_max = 1.5
+ϵ_d = 0.01
 weights = ones(length(sample_points));
 ##
-@time for i in 1:25
-    update_weights!(weights, sample_points, normals, vps[end])
-    region = potential_region(vps[end], sample_points, normals, weights, steps=steps, d_max=d_max)
+@time for i in 1:15
+    update_weights!(weights, sample_points, normals, vps[end], ϵ_d=ϵ_d)
+    region = potential_region(vps[end], sample_points, normals, weights, 
+                                steps=steps, d_max=d_max, ϵ_d=ϵ_d)
     highest_idx = argmax(region)
     move = index_to_movement(highest_idx, steps=steps, d_max=d_max)
     push!(moves, move)
@@ -113,16 +116,15 @@ delete!(scene, viewdir_vis)
 vp_pos = [GeometryBasics.Point3(v.position...) for v in vps]
 viewdirs = GeometryBasics.Vec3.(viewdir.(vps))
 viewdir_vis = arrows!(scene, vp_pos, viewdirs.*4, color=:red)
-delete!(scene, point_vis)
+# delete!(scene, point_vis)
 point_vis = scatter!(scene, sample_points, color=weights) 
 #delete!(scene, vps_vis)
 # vps_vis = meshscatter!(scene, vp_pos, markersize=.2)
 
 ###########
 # TODO: continue here
-# - make fov smaller
 # - check angle constraint for visibility
-# - why are the viewpoints moving closer to the surface???
+# - use ImageProjectiveGeometry.Camera instead of Viewpoint? Could make things easier
 # - integrate all parameters and data into one "scene" object (need better name)
 # - constrain the movement to more consistent (depends on if the rest already works)
 # - use bppc for weight update
