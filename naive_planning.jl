@@ -38,6 +38,9 @@ weights = ones(length(sample_points))
 
 ## compute potential in a region around the viewpoint
 function potential_region(vp::Viewpoint, points, normals, weights; d_max=2., steps=10, ang_max=deg2rad(20), ϵ_d=0.1, λ=0.5, ϵ=1e-2)
+    if iseven(steps)
+        @warn "grid size is even. Neutral movement is not contained"
+    end
     xs = ys = zs = LinRange(-d_max, d_max, steps)
     θs = Φs = LinRange(-ang_max, ang_max, steps)
     pot = zeros(length(xs), length(ys), length(zs), length(θs), length(Φs))
@@ -56,6 +59,17 @@ function potential_region(vp::Viewpoint, points, normals, weights; d_max=2., ste
     end
     pot
 end
+function scale_potential_horizontal!(pot::Array, λ=0.7)
+    # to prefer horizontal movements, scale movement along z axis by something <1
+    center = Int(ceil(size(pot,3)/2))
+    for idx in eachindex(IndexCartesian(), pot)
+        if idx[3] != center
+            pot[idx] *= λ 
+        end
+        # pot[idx] *= 1. - abs(idx[3] - center) / 10.
+    end
+end
+
 function index_to_movement(idx::CartesianIndex; d_max=2., steps=10, ang_max=deg2rad(20))
     xs = ys = zs = LinRange(-d_max, d_max, steps)
     θs = Φs = LinRange(-ang_max, ang_max, steps)
@@ -68,31 +82,24 @@ function index_to_movement(idx::CartesianIndex; d_max=2., steps=10, ang_max=deg2
 end
 ##
 @time pot = potential_region(qv, sample_points, normals, weights, steps=5);
-
+scale_potential_horizontal!(pot)
 ## 
-index_to_movement(argmax(pot), steps=7)
-
-##
-# function update_weights!(weights::Vector, sample_points, normals, vp::Viewpoint; ϵ_d=0.1, λ=0.5, ϵ=1e-2)
-#     for i in eachindex(sample_points)
-#         if is_point_visible_float(sample_points[i], normals[i], vp.position, viewdir(vp), 4., π/3, cos(π/4), ϵ_d) > ϵ
-#             weights[i] *= λ
-#         end
-#     end
-# end
+argmax(pot)
+index_to_movement(CartesianIndex(4, 4, 5, 6, 2), steps=7)
 
 ## try planning
 vps = [qv]
 moves = []
-steps = 6
+steps = 5
 d_max = 1.5
 ϵ_d = 0.01
 weights = ones(length(sample_points));
 ##
-@time for i in 1:15
+@time for i in 1:150
     update_weights!(weights, sample_points, normals, vps[end], ϵ_d=ϵ_d)
     region = potential_region(vps[end], sample_points, normals, weights, 
                                 steps=steps, d_max=d_max, ϵ_d=ϵ_d)
+    scale_potential_horizontal!(region, 0.5)
     highest_idx = argmax(region)
     move = index_to_movement(highest_idx, steps=steps, d_max=d_max)
     push!(moves, move)
@@ -104,6 +111,7 @@ weights = ones(length(sample_points));
     viewdir_vis = arrows!(scene, vp_pos, viewdirs.*4, color=:red)
     delete!(scene, point_vis)
     point_vis = scatter!(scene, sample_points, color=weights)
+    
 end
 
 ##
@@ -120,6 +128,9 @@ viewdir_vis = arrows!(scene, vp_pos, viewdirs.*4, color=:red)
 point_vis = scatter!(scene, sample_points, color=weights) 
 #delete!(scene, vps_vis)
 # vps_vis = meshscatter!(scene, vp_pos, markersize=.2)
+delete!(scene, path_vis)
+vp_pos = [GeometryBasics.Point3(v.position...) for v in vps]
+path_vis = lines!(scene, vp_pos, color=:red)
 
 ###########
 # TODO: continue here
