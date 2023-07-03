@@ -22,7 +22,7 @@ function is_point_visible_float(point, normal, position, viewdir, target_distanc
     δ = abs(dist - target_distance) / target_distance 
     
     # d_vis = 1. - clamp((δ / ϵ_d)^10, 0, 1) # admissible distance range
-    d_vis = cont_isless(δ, ϵ_d)
+    d_vis = cont_isless(δ, ϵ_d/2) # TODO: is this a bad hack?
     # d_vis = δ < ϵ_d
     
     viewray = (point - position)./dist
@@ -30,7 +30,7 @@ function is_point_visible_float(point, normal, position, viewdir, target_distanc
     d_fov = cont_isless(cos(fov/2), viewdir ⋅ viewray)
     
     #d_ang = clamp(((viewray ⋅ -normal) / cos_min), 0., 1.)^10 # angle between normal and viewdir
-    d_ang = cont_isless(cos_min*0., viewray ⋅ -normal)
+    d_ang = cont_isless(cos_min, viewray ⋅ -normal)
     return d_vis * d_fov * d_ang
 end
 
@@ -46,6 +46,11 @@ function potential(x::Viewpoint, points::Vector{SVector{3,T}}, normals::Vector{S
     cos_max = cos(angle_tol)
     pos = x.position
     dir = viewdir(x)
+
+    safety_distance = 1.
+    if any([norm(p - pos) for p in points] .< safety_distance)
+        return zero(T)
+    end
     
     ThreadsX.mapreduce(+, points, normals, weights) do point, normal, weight
         vis = is_point_visible_float(point, normal, pos, dir, target_distance, fov, cos_max, ϵ_d)
