@@ -61,10 +61,10 @@ struct QuatMovement{T} <: Movement
 end
 
 # convert between movement types
-QuatMovement(pm::PolarMovement) = QuatMovement(pm.direction, from_euler_angles(pm.dΦ,pm.dΘ,0))
+QuatMovement(pm::PolarMovement) = QuatMovement(pm.direction, from_spherical_coordinates(pm.dΘ,pm.dΦ))
 function PolarMovement(qm::QuatMovement)
     eulers = to_euler_angles(qv.rotation)
-    PolarMovement(qv.direction, eulers[2], eulers[1] + eulers[3])
+    PolarMovement(qv.direction, -eulers[2], eulers[1] + eulers[3])
 end
 Base.convert(::Type{QuatMovement}, pm::PolarMovement) = QuatMovement(pm)
 Base.convert(::Type{PolarMovement}, qm::QuatMovement) = PolarMovement(qm)
@@ -81,7 +81,7 @@ Base.angle(pm::PolarMovement) = angle(QuatMovement(pm))
 LinearAlgebra.norm(m::Movement) = norm(m.direction)
 
 # apply movement to viewpoint
-apply(qv::QuatViewpoint, qm::QuatMovement) = QuatViewpoint(qv.position + qm.direction, qm.rotation * qv.orientation)
+apply(qv::QuatViewpoint, qm::QuatMovement) = QuatViewpoint(qv.position + qm.direction, qv.orientation * qm.rotation )
 apply(qv::QuatViewpoint, pm::PolarMovement) = apply(qv, QuatMovement(pm))
 
 # check if a movement is valid
