@@ -28,15 +28,16 @@ ground_level = minimum(getindex.(sample_points, 3))
 
 ## create a first viewpoint
 function random_viewpoint(points, point_normals, dist=4.)
-    idx = rand(1:length(points))
-    coords = points[idx] .+ (point_normals[idx] * dist)
-    # coords = SVector(coords[1], coords[2], ground_level + 0.1)
-    view_dir = point_normals[idx]
-    view_dir = view_dir / -norm(view_dir)
+    idx = rand(eachindex(points))
+    println("pos: ", points[idx])
+    println("norm: ", point_normals[idx])
+    view_dir = -point_normals[idx]
+    view_dir = view_dir / norm(view_dir)
+    coords = points[idx] + (-view_dir * dist)
     vθ = Float64(asin(view_dir[3]))
     vΦ = Float64(atan(view_dir[2], view_dir[1]))
     v = PolarViewpoint(SVector{3, Float64}(coords), vθ, vΦ)
-    QuatViewpoint(v)
+    QuatViewpoint(v), idx
 end
 vp = random_viewpoint(sample_points, normals)
 
@@ -94,7 +95,8 @@ Makie.mesh!(scene, geo_mesh)
 center!(scene)
 
 ##
-qv = random_viewpoint(sample_points, normals, d_target)
+qv, idx = random_viewpoint(sample_points, normals, d_target)
+weights[idx] = 0.
 vps = [qv]
 vp_pos = [GeometryBasics.Point3(v.position...) for v in vps]
 viewdirs = GeometryBasics.Vec3.(viewdir.(vps))

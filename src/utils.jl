@@ -4,18 +4,18 @@ using Meshes
 
 function random_points_and_normals(rng::AbstractRNG, Ω::DomainOrData,
     method::HomogeneousSampling)
-size    = method.size
-weights = measure.(Ω)
+	size    = method.size
+	weights = measure.(Ω)
 
-# sample elements with weights proportial to measure
-w = WeightedSampling(size, weights, replace=true)
+	# sample elements with weights proportial to measure
+	w = WeightedSampling(size, weights, replace=true)
 
-# within each element sample a single point
-h = HomogeneousSampling(1)
+	# within each element sample a single point
+	h = HomogeneousSampling(1)
 
-tris = sample(rng, Ω, w)
+	tris = sample(rng, Ω, w)
 
-(first(sample(rng, e, h)) for e in tris) , tris
+	(first(sample(rng, e, h)) for e in tris) , tris
 end
 
 function loadmesh(path)
