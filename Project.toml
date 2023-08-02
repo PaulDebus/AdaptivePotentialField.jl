@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Paul Debus <paul.debus@uni-weimar.de>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 name = "AdaptivePotentialField"
 uuid = "fcfda7fb-d345-4ecd-8dc0-004476307bae"
 authors = ["Paul Debus <paul.debus@uni-weimar.de>"]

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Paul Debus <paul.debus@uni-weimar.de>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 export Viewpoint, PolarViewpoint, QuatViewpoint
 export viewdir, to_vector, from_vector
 export Movement, PolarMovement, QuatMovement

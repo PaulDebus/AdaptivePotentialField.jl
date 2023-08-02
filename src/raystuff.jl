@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2023 Paul Debus <paul.debus@uni-weimar.de>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 function raycast_mesh_3d_cuda(mesh::Mesh, origin::Vector{Float32}, direction::Vector{Float32}, max_distance::Float32)
     vertices = CUDA.cu(mesh.vertices)
