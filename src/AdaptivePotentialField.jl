@@ -50,7 +50,7 @@ function is_point_visible_float(point::SurfacePoint, position, viewdir, target_d
     return d_vis * d_fov * d_ang
 end
 
-function update_weights!(points::Vector{SurfacePoint}, vp::Viewpoint; target_distance=4, fov=π/3, ϵ_d=0.1, angle_tol = π/4, λ=0.5, ϵ=1e-2)
+function update_weights!(points::Vector{SurfacePoint{T}}, vp::Viewpoint; target_distance=4, fov=π/3, ϵ_d=0.1, angle_tol = π/4, λ=0.5, ϵ=1e-2) where T
     # update the weights of the surface points based if they are visibile from the viewpoint
     for point in points
         if is_point_visible_float(point, vp.position, viewdir(vp), target_distance, fov, cos(angle_tol), ϵ_d) > ϵ
@@ -59,14 +59,15 @@ function update_weights!(points::Vector{SurfacePoint}, vp::Viewpoint; target_dis
     end
 end
 
-function potential(x::Viewpoint, points::Vector{SurfacePoint}; target_distance=4., fov=π/3, ϵ_d=0.1, angle_tol = π/4, safety_distance=1.) where T
+function potential(x::Viewpoint, points::Vector{SurfacePoint{T}}; target_distance=4., fov=π/3, ϵ_d=0.1, angle_tol = π/4, safety_distance=1.) where T
     # the potential of a viewpoint candidate is the weighted sum of the visibilities
     # of all surface points by the weight of each point
     cos_max = cos(angle_tol)
     pos = x.position
     dir = viewdir(x)
 
-    if any(distance.(points, pos) .< safety_distance)
+    distances = map(p -> distance(p, pos), points)
+    if any(distances .< safety_distance)
         return zero(T)
     end
     

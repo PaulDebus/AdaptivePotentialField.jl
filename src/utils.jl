@@ -6,7 +6,7 @@ export random_points_and_normals, loadmesh
 
 using Meshes
 
-function random_points_and_normals(rng::AbstractRNG, Ω::DomainOrData,
+function random_points_and_normals(rng::AbstractRNG, Ω::Domain,
     method::HomogeneousSampling)
 	size    = method.size
 	weights = measure.(Ω)
